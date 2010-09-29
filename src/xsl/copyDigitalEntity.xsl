@@ -66,7 +66,7 @@
     </xsl:template>
 
     <!-- optionally modify usage_type element -->
-    <xsl:template match="xb:digital_entity/contol/usage_type">
+    <xsl:template match="xb:digital_entity/control/usage_type">
         <xsl:choose>
             <xsl:when test="$usage = null">
                 <xsl:copy>
