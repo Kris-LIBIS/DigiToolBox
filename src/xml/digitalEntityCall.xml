@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xb:digital_entity_call xmlns:xb="http://com/exlibris/digitool/repository/api/xmlbeans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  %digital_entity%
+  <command>%command%</command>
+</xb:digital_entity_call>

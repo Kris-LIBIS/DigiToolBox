@@ -1,0 +1,17 @@
+<xb:digital_entity>
+    <control>
+        <label>%label%</label>
+        <usage_type>%usage_type%</usage_type>
+        %extra_control%
+    </control>
+    %metadata%
+    <relations>
+        <relation>
+            <type>%relation_type%</type>
+            <pid>%relation_with%</pid>
+        </relation>
+    </relations>
+    <stream_ref store_command="%file_operation%" location="%file_location%">
+        <file_name>%file_path%</file_name>
+    </stream_ref>
+</xb:digital_entity>
