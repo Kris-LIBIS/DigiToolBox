@@ -34,7 +34,11 @@ import org.xml.sax.InputSource;
  *
  * @author kris
  */
-public class ToolBox {
+public final class ToolBox {
+
+    public final static ToolBox INSTANCE = new ToolBox();
+
+    private ToolBox() {}
 
     private static final String soapURL = "http://aleph08.libis.kuleuven.be:1801/de_repository_web/services/";
     private static final String generalFile = "/xml/general.xml";
@@ -51,6 +55,7 @@ public class ToolBox {
     private String active_user = "lia01";
     private String user_name = "super";
     private String password = "super";
+    public boolean simulateUpdate = false;
 
     public void setActiveLibrary(String active_library) {
         this.active_library = active_library;
@@ -532,7 +537,19 @@ public class ToolBox {
 
         logger.finest("DECall: " + digitalEntityCall);
 
-        String reply = DE_Call(digitalEntityCall);
+        String reply = "";
+
+        if ("retrieve".equals(command) || !simulateUpdate) {
+            reply = DE_Call(digitalEntityCall);
+        } else {
+            reply  = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                    + "<xb:digital_entity_result"
+                    + " xmlns:xb=\"http://com/exlibris/digitool/repository/api/xmlbeans\">"
+                    + "<xb:digital_entity>"
+                    + "<pid>xxxx</pid>"
+                    + "</xb:digital_entity>"
+                    + "</xb:digital_entity_result>";
+        }
 
         logger.finest("DEReply: " + reply);
 
@@ -613,7 +630,7 @@ public class ToolBox {
     }
 
     protected String removeNamespace(String digital_entity) {
-        String result = digital_entity.replaceAll("<[?]xml[^>]*>","");
+        String result = digital_entity.replaceAll("<[?]xml[^>]*>", "");
         result = result.replaceFirst("<xb:digital_entity[^>]*>", "<xb:digital_entity>");
         return result;
     }
