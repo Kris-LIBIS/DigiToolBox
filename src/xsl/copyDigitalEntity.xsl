@@ -53,7 +53,7 @@
             </xsl:if>
             <xsl:if test="$copyRelations">
                 <xsl:apply-templates select="relations"/>
-            </xsl:if>templates
+            </xsl:if>
             <!-- stream_ref is deliberately omitted in the output -->
         </xsl:copy>
     </xsl:template>
@@ -68,7 +68,7 @@
     <!-- optionally modify usage_type element -->
     <xsl:template match="xb:digital_entity/control/usage_type">
         <xsl:choose>
-            <xsl:when test="$usage = null">
+            <xsl:when test="$usage = null or $usage = ''">
                 <xsl:copy>
                     <xsl:apply-templates select="@*|node()"/>
                 </xsl:copy>

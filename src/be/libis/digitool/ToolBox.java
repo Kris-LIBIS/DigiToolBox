@@ -608,11 +608,11 @@ public class ToolBox {
         return sw.toString();
     }
 
-    private String addNamespace(String digital_entity) {
+    protected String addNamespace(String digital_entity) {
         return digital_entity.replaceFirst("<xb:digital_entity>", "<xb:digital_entity xmlns:xb=\"http://com/exlibris/digitool/repository/api/xmlbeans\">");
     }
 
-    private String removeNamespace(String digital_entity) {
+    protected String removeNamespace(String digital_entity) {
         String result = digital_entity.replaceAll("<[?]xml[^>]*>","");
         result = result.replaceFirst("<xb:digital_entity[^>]*>", "<xb:digital_entity>");
         return result;
