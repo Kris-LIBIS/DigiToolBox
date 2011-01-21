@@ -1,23 +1,8 @@
 <xb:x_queries xmlns:xb="http://com/exlibris/digitool/repository/api/xmlbeans">
-    <x_query type="xql" set_name="SET1">
+    <x_query type="hql" set_name="SET1">
         <x_select from_answer="0" to_answer="%max_result%">
             <element>pid</element>
         </x_select>
-        <x_where>
-            <x_condition>
-                <type>exact</type>
-                <element>label</element>
-                <value>%label%</value>
-            </x_condition>
-            <x_condition>
-                <type>EXACT</type>
-                <element>usagetype</element>
-                <value>%usagetype%</value>
-            </x_condition>
-        </x_where>
-        <x_sort>
-            <by>pid</by>
-            <x_order>asc</x_order>
-        </x_sort>
+        <hql>select hc from HDeControl hc where usagetype = '%usagetype%' and label = '%label%' order by pid asc</hql>
     </x_query>
 </xb:x_queries>

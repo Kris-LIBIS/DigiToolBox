@@ -3,7 +3,9 @@
     xmlns:xb="http://com/exlibris/digitool/repository/api/xmlbeans">
 
     <xsl:param name="pid"/>
+    <xsl:param name="old_pid"/>
     <xsl:param name="usage"/>
+    <xsl:param name="clear_entity_type">false</xsl:param>
     <xsl:param name="copyControl">false</xsl:param>
     <xsl:param name="copyMetadata">false</xsl:param>
     <xsl:param name="copyRelations">false</xsl:param>
@@ -81,6 +83,20 @@
          </xsl:choose>
     </xsl:template>
 
+    <!-- optionally clear entity_type element -->
+    <xsl:template match="xb:digital_entity/control/entity_type">
+        <xsl:choose>
+            <xsl:when test="$clear_entity_type">
+                <xsl:element name="{name()}"/>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:copy>
+                    <xsl:apply-templates select="@*|node()"/>
+                </xsl:copy>
+            </xsl:otherwise>
+         </xsl:choose>
+    </xsl:template>
+
     <!-- process the metadata entries -->
     <xsl:template match="xb:digital_entity/mds">
         <xsl:element name="{name()}">
@@ -107,7 +123,11 @@
         <xsl:element name="{name()}">
             <xsl:attribute name="cmd">delete_and_insert_all</xsl:attribute>
             <xsl:apply-templates select="@*"/>
-            <xsl:apply-templates select="node()"/>
+            <xsl:apply-templates select="relation[type = 'manifestation']"/>
+            <xsl:element name="relation">
+                <xsl:element name="type">manifestation</xsl:element>
+                <xsl:element name="pid"><xsl:value-of select="$old_pid"/></xsl:element>
+            </xsl:element>
         </xsl:element>
     </xsl:template>
 

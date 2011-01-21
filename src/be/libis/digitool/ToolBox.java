@@ -44,6 +44,8 @@ public final class ToolBox {
     private static final String generalFile = "/xml/general.xml";
     private static final String findPid1Xml = "/xml/findPid1.xml";
     private static final String findPid2Xml = "/xml/findPid2.xml";
+    private static final String hqlQueryXml = "/xml/hqlQuery.xml";
+    private static final String sqlQueryXml = "/xml/sqlQuery.xml";
     public static final String digitalEntityCallXml = "/xml/digitalEntityCall.xml";
     public static final String pidDigitalEntityXml = "/xml/pidDigitalEntity.xml";
     public static final String newDigitalEntityXml = "/xml/newDigitalEntity.xml";
@@ -92,72 +94,103 @@ public final class ToolBox {
     }
 
     public List<String> getManifestationPids(String pid, String usage_type) {
-        List<String> pids = new ArrayList<String>();
 
-        String reply = sendGetRequest(
-                "http://aleph08.libis.kuleuven.be:8881/dtl-cgi/get-pid.pl",
-                "pid=" + pid + "&usagetype=" + usage_type.toUpperCase());
+        logger.fine("Searching for '" + usage_type + "' PIDs for '" + pid + "'");
 
-        Document resultDoc = parseString(reply);
+        boolean success = false;
 
-        NodeList resultNodes = resultDoc.getElementsByTagName("target_pid");
+        String[] pids = new String[]{};
 
-        for (int i = 0; i < resultNodes.getLength(); ++i) {
-            Node pidNode = resultNodes.item(i);
-            String pid_found = pidNode.getTextContent();
-            if (pid_found == null || pid_found.equals("")) {
-                continue;
-            }
-            logger.finest("Found pid " + pid_found + " as manifestation "
-                    + usage_type + " of pid " + pid);
-            pids.add(pid_found);
+        String usage_where = "and c1.usagetype ";
+        if (usage_type == null || usage_type.contentEquals("")) {
+            usage_where += "is NULL ";
+        } else if (usage_type.equalsIgnoreCase("ANY")) {
+            usage_where = "";
+        } else {
+            usage_where += "= '" + usage_type + "' ";
         }
 
-        return pids;
+        String query_text =
+                "SELECT c1.pid from HDeControl c1 where c1.pid = '" + pid + "' "
+                + usage_where
+                + "UNION "
+                + "SELECT c1.pid from HDeRelation r "
+                + "JOIN HDeControl c1 on c1.id = r.targetcontrol "
+                + "JOIN HDeControl c2 on c2.id = r.control "
+                + "WHERE r.type = 3 and c2.pid = '" + pid + "' " + usage_where
+                + "UNION "
+                + "SELECT c1.pid from HDeRelation r "
+                + "JOIN HDeControl c1 on c1.id = r.control "
+                + "JOIN HDeControl c2 on c2.id = r.targetcontrol "
+                + "WHERE r.type = 3 and c2.pid = '" + pid + "'" + usage_where;
+
+        try {
+
+            String searchString = readFile(sqlQueryXml);
+
+            String query = searchString
+                    .replaceAll("%max_result%", new Integer(max_result).toString())
+                    .replaceAll("%element%", "pid")
+                    .replaceAll("%query%", query_text);
+
+            String reply = DE_Search(query);
+
+            if (!checkReplyForError(reply)) {
+                pids = parseReply(reply, "pid");
+                success = true;
+            }
+
+        } catch (Exception e) {
+            printExceptionInfo(e);
+        }
+
+        if (success && pids.length > 0) {
+            String message = "Found PIDs:";
+            for (int i = 0; i < pids.length; i++) {
+                message += " '" + pids[i] + "'";
+            }
+            logger.fine(message);
+        } else {
+            logger.severe("No PIDs found with query: '" + query_text + "'");
+            return null;
+        }
+
+        List<String> result = new ArrayList<String>(pids.length);
+
+        for (String p : pids) {
+            result.add(p);
+        }
+
+        return result;
+    }
+
+    public String valueToSqlQuery(String value) {
+        String query = " ";
+        if (value.matches(".*[^!][%_].*")) {
+            query += "like '";
+        } else {
+            query += "= '";
+        }
+        query += value + "'";
+
+        return query;
     }
 
     public String[] getPid(String label) {
 
-        logger.fine("Searching for PIDs with label='" + label + "'");
+        return getPidQuery("label " + valueToSqlQuery(label));
 
-        boolean success = false;
-
-        String[] pid = new String[]{};
-
-        try {
-
-            String searchString = readFile(findPid1Xml);
-            String query = searchString.replaceAll("%max_result%", new Integer(max_result).toString()).replaceAll("%label%", xmlify(label));
-
-            String reply = DE_Search(query);
-
-            if (!checkReplyForError(reply)) {
-                pid = parseReply(reply, "pid");
-                success = true;
-            }
-
-        } catch (Exception e) {
-            printExceptionInfo(e);
-        }
-
-        if (success && pid.length > 0) {
-            String message = "Found PIDs:";
-            for (int i = 0; i < pid.length; i++) {
-                message += " '" + pid[i] + "'";
-            }
-            logger.fine(message);
-        } else {
-            logger.severe("No PIDs found with label='" + label + "'");
-            return null;
-        }
-
-        return pid;
     }
 
     public String[] getPid(String label, String usagetype) {
 
-        logger.fine("Searching for PIDs with label='" + label
-                + "' and usage_type='" + usagetype + "'");
+        return getPidQuery("label" + valueToSqlQuery(label) + " and usagetype" + valueToSqlQuery(usagetype));
+        
+    }
+
+    public String[] getPidQuery(String query_text) {
+
+        logger.fine("Searching for PIDs with query: '" + query_text + "'");
 
         boolean success = false;
 
@@ -165,12 +198,12 @@ public final class ToolBox {
 
         try {
 
-            String searchString = readFile(findPid2Xml);
-            String usageQuery = usagetype.equalsIgnoreCase("VIEW")
-                    ? usagetype + " not VIEW_MAIN"
-                    : usagetype;
+            String searchString = readFile(hqlQueryXml);
 
-            String query = searchString.replaceAll("%max_result%", new Integer(max_result).toString()).replaceAll("%label%", xmlify(label)).replaceAll("%usagetype%", xmlify(usageQuery));
+            String query = searchString
+                    .replaceAll("%max_result%", new Integer(max_result).toString())
+                    .replaceAll("%element%", "pid")
+                    .replaceAll("%query%", query_text);
 
             String reply = DE_Search(query);
 
@@ -190,8 +223,7 @@ public final class ToolBox {
             }
             logger.fine(message);
         } else {
-            logger.severe("No PIDs found with label='" + label
-                    + "' and usage_type='" + usagetype + "'");
+            logger.severe("No PIDs found with query: '" + query_text + "'");
             return null;
         }
 
@@ -355,6 +387,7 @@ public final class ToolBox {
         public Boolean copyControl = false;
         public Boolean copyMetadata = false;
         public Boolean copyRelations = false;
+        public Boolean clear_complex = false;
 
         public DECopyParameters(String from_pid, String to_pid) {
             this.from_pid = from_pid;
@@ -384,8 +417,13 @@ public final class ToolBox {
                         new ArrayList<TransformationParameter>(5);
 
                 tparams.add(new TransformationParameter("pid", params.to_pid));
+                tparams.add(new TransformationParameter("old_pid", params.from_pid));
                 if (params.usage_type != null) {
                     tparams.add(new TransformationParameter("usage", params.usage_type));
+                }
+                Document oldDoc = parseString(oldDigitalEntity);
+                if (oldDoc.getElementsByTagName("entity_type").item(0).getTextContent().equalsIgnoreCase("complex")) {
+                    tparams.add(new TransformationParameter("clear_entity_type", new Boolean(params.clear_complex)));
                 }
                 tparams.add(new TransformationParameter(
                         "copyControl", new Boolean(params.copyControl)));
@@ -515,11 +553,11 @@ public final class ToolBox {
 
             call.setReturnType(org.apache.axis.Constants.XSD_STRING);
 
-//            logger.finest("DESearch: " + query);
+            logger.finest("DESearch: " + query);
 
             reply = doSoapCall("DigitalEntityExplorer", call, new Object[]{general, query});
 
-//            logger.finest("DEReply: " + reply);
+            logger.finest("DEReply: " + reply);
 
         } catch (Exception e) {
             printExceptionInfo(e);
