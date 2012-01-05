@@ -42,8 +42,8 @@ public final class ToolBox {
 
     private static final String soapURL = "http://aleph08.libis.kuleuven.be:1801/de_repository_web/services/";
     private static final String generalFile = "/xml/general.xml";
-    private static final String findPid1Xml = "/xml/findPid1.xml";
-    private static final String findPid2Xml = "/xml/findPid2.xml";
+//    private static final String findPid1Xml = "/xml/findPid1.xml";
+//    private static final String findPid2Xml = "/xml/findPid2.xml";
     private static final String hqlQueryXml = "/xml/hqlQuery.xml";
     private static final String sqlQueryXml = "/xml/sqlQuery.xml";
     public static final String digitalEntityCallXml = "/xml/digitalEntityCall.xml";
@@ -163,6 +163,75 @@ public final class ToolBox {
 
         return result;
     }
+
+    public List<String> getChildPids(String pid, String usage_type) {
+
+      logger.fine("Searching for '" + usage_type + "' child PIDs of '" + pid + "'");
+
+      boolean success = false;
+
+      String[] pids = new String[]{};
+
+      String usage_where = "and c1.usagetype ";
+      if (usage_type == null || usage_type.contentEquals("")) {
+          usage_where += "is NULL ";
+      } else if (usage_type.equalsIgnoreCase("ANY")) {
+          usage_where = "";
+      } else {
+          usage_where += "= '" + usage_type + "' ";
+      }
+
+      String query_text =
+              "SELECT c1.pid pid from HDeRelation r "
+              + "JOIN HDeControl c1 on c1.id = r.targetcontrol "
+              + "JOIN HDeControl c2 on c2.id = r.control "
+              + "WHERE r.type = 2 and c2.pid = '" + pid + "' " + usage_where
+              + " UNION "
+              + "SELECT c1.pid pid from HDeRelation r "
+              + "JOIN HDeControl c1 on c1.id = r.control "
+              + "JOIN HDeControl c2 on c2.id = r.targetcontrol "
+              + "WHERE r.type = 2 and c2.pid = '" + pid + "'" + usage_where
+              + " ORDER BY pid";
+
+      try {
+
+          String searchString = readFile(sqlQueryXml);
+
+          String query = searchString
+                  .replaceAll("%max_result%", new Integer(max_result).toString())
+                  .replaceAll("%element%", "pid")
+                  .replaceAll("%query%", query_text);
+
+          String reply = DE_Search(query);
+
+          if (!checkReplyForError(reply)) {
+              pids = parseReply(reply, "pid");
+              success = true;
+          }
+
+      } catch (Exception e) {
+          printExceptionInfo(e);
+      }
+
+      if (success && pids.length > 0) {
+          String message = "Found PIDs:";
+          for (int i = 0; i < pids.length; i++) {
+              message += " '" + pids[i] + "'";
+          }
+          logger.fine(message);
+      } else {
+          logger.severe("No PIDs found with query: '" + query_text + "'");
+          return null;
+      }
+
+      List<String> result = new ArrayList<String>(pids.length);
+
+      for (String p : pids) {
+          result.add(p);
+      }
+
+      return result;
+  }
 
     public String valueToSqlQuery(String value) {
         String query = " ";
@@ -381,8 +450,8 @@ public final class ToolBox {
 
     static public class DECopyParameters {
 
-        public final String from_pid;
-        public final String to_pid;
+        public String from_pid;
+        public String to_pid;
         public String usage_type = null;
         public Boolean copyControl = false;
         public Boolean copyMetadata = false;
@@ -788,11 +857,10 @@ public final class ToolBox {
         return label;
     }
 
-    private String sendGetRequest(String endpoint, String requestParameters) {
+    public String sendGetRequest(String endpoint, String requestParameters) {
         String result = null;
 
         try {
-            StringBuffer data = new StringBuffer();
             String urlStr = endpoint;
 
             if (requestParameters != null && requestParameters.length() > 0) {

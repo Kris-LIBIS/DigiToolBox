@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<!DOCTYPE project>
+<project name="DigiToolBox" default="main">
+  <target name="main" depends="create_jar" />
+  <target name="create_jar" description="Build jar">
+    <jar destfile="dist/DigiToolBox.jar" index="true">
+      <fileset dir="bin" />
+    </jar>
+  </target>
+  <target name="doc">
+    <javadoc sourcepath="src" destdir="doc" use="true" />
+  </target>
+</project>
